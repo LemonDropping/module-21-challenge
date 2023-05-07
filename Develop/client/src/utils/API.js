@@ -1,57 +1,88 @@
-// route to get logged in user's info (needs the token)
-export const getMe = (token) => {
-  return fetch('/api/users/me', {
-    headers: {
-      'Content-Type': 'application/json',
-      authorization: `Bearer ${token}`,
-    },
-  });
-};
+const API_BASE_URL = '/graphql';
 
-export const createUser = (userData) => {
-  return fetch('/api/users', {
+async function fetchGraphQL(query, variables = {}) {
+  const response = await fetch(API_BASE_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem('id_token')}`,
     },
-    body: JSON.stringify(userData),
+    body: JSON.stringify({
+      query,
+      variables,
+    }),
   });
-};
 
-export const loginUser = (userData) => {
-  return fetch('/api/users/login', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(userData),
-  });
-};
+  if (!response.ok) {
+    throw new Error(`Error fetching GraphQL data: ${response.statusText}`);
+  }
 
-// save book data for a logged in user
-export const saveBook = (bookData, token) => {
-  return fetch('/api/users', {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(bookData),
-  });
-};
+  const { data, errors } = await response.json();
 
-// remove saved book data for a logged in user
-export const deleteBook = (bookId, token) => {
-  return fetch(`/api/users/books/${bookId}`, {
-    method: 'DELETE',
-    headers: {
-      authorization: `Bearer ${token}`,
-    },
-  });
-};
+  if (errors) {
+    throw new Error(`Error in GraphQL response: ${errors.map(error => error.message).join(', ')}`);
+  }
 
-// make a search to google books api
-// https://www.googleapis.com/books/v1/volumes?q=harry+potter
-export const searchGoogleBooks = (query) => {
-  return fetch(`https://www.googleapis.com/books/v1/volumes?q=${query}`);
-};
+  return data;
+}
+
+export async function getMe() {
+  const query = `
+    query {
+      me {
+        _id
+        username
+        email
+        savedBooks {
+          bookId
+          authors
+          title
+          description
+          image
+        }
+      }
+    }
+  `;
+
+  const data = await fetchGraphQL(query);
+  return data.me;
+}
+export async function searchGoogleBooks(query) {
+  const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${query}`);
+  if (!response.ok) {
+    throw new Error('Failed to retrieve Google Books results.');
+  }
+  return response.json();
+}
+
+export async function saveBook(bookData) {
+  const query = `
+    mutation {
+      saveBook(input: {
+        bookId: "${bookData.bookId}",
+        authors: "${bookData.authors.join(', ')}",
+        title: "${bookData.title}",
+        description: "${bookData.description}",
+        image: "${bookData.image}",
+        link: "${bookData.link}"
+      }) {
+        _id
+        username
+        email
+        savedBooks {
+          bookId
+          authors
+          title
+          description
+          image
+        }
+      }
+    }
+  `;
+
+  const data = await fetchGraphQL(query);
+  return data.saveBook;
+}
+
+// Other API functions (e.g., removeBook, etc.) can be added here.

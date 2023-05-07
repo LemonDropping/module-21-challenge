@@ -1,77 +1,57 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Navbar, Nav, Container, Modal, Tab } from 'react-bootstrap';
-import SignUpForm from './SignupForm';
-import LoginForm from './LoginForm';
+import React from "react";
+import { useQuery, useMutation } from "@apollo/client";
+import { Link } from "react-router-dom";
+import Auth from "../utils/auth";
+import { GET_ME } from "../utils/queries";
+import { LOGOUT_USER } from "../utils/mutations";
 
-import Auth from '../utils/auth';
+function Navbar() {
+  const { loading, data } = useQuery(GET_ME);
+  const [logout] = useMutation(LOGOUT_USER);
 
-const AppNavbar = () => {
-  // set modal display state
-  const [showModal, setShowModal] = useState(false);
+  const handleLogout = () => {
+    logout();
+    Auth.logout();
+  };
 
-  return (
+  const authLink = Auth.loggedIn() ? (
     <>
-      <Navbar bg='dark' variant='dark' expand='lg'>
-        <Container fluid>
-          <Navbar.Brand as={Link} to='/'>
-            Google Books Search
-          </Navbar.Brand>
-          <Navbar.Toggle aria-controls='navbar' />
-          <Navbar.Collapse id='navbar' className='d-flex flex-row-reverse'>
-            <Nav className='ml-auto d-flex'>
-              <Nav.Link as={Link} to='/'>
-                Search For Books
-              </Nav.Link>
-              {/* if user is logged in show saved books and logout */}
-              {Auth.loggedIn() ? (
-                <>
-                  <Nav.Link as={Link} to='/saved'>
-                    See Your Books
-                  </Nav.Link>
-                  <Nav.Link onClick={Auth.logout}>Logout</Nav.Link>
-                </>
-              ) : (
-                <Nav.Link onClick={() => setShowModal(true)}>Login/Sign Up</Nav.Link>
-              )}
-            </Nav>
-          </Navbar.Collapse>
-        </Container>
-      </Navbar>
-      {/* set modal data up */}
-      <Modal
-        size='lg'
-        show={showModal}
-        onHide={() => setShowModal(false)}
-        aria-labelledby='signup-modal'>
-        {/* tab container to do either signup or login component */}
-        <Tab.Container defaultActiveKey='login'>
-          <Modal.Header closeButton>
-            <Modal.Title id='signup-modal'>
-              <Nav variant='pills'>
-                <Nav.Item>
-                  <Nav.Link eventKey='login'>Login</Nav.Link>
-                </Nav.Item>
-                <Nav.Item>
-                  <Nav.Link eventKey='signup'>Sign Up</Nav.Link>
-                </Nav.Item>
-              </Nav>
-            </Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            <Tab.Content>
-              <Tab.Pane eventKey='login'>
-                <LoginForm handleModalClose={() => setShowModal(false)} />
-              </Tab.Pane>
-              <Tab.Pane eventKey='signup'>
-                <SignUpForm handleModalClose={() => setShowModal(false)} />
-              </Tab.Pane>
-            </Tab.Content>
-          </Modal.Body>
-        </Tab.Container>
-      </Modal>
+      <li className="nav-item">
+        <Link to="/me" className="nav-link">
+          {data?.me.username}'s Profile
+        </Link>
+      </li>
+      <li className="nav-item">
+        <a href="/" className="nav-link" onClick={handleLogout}>
+          Logout
+        </a>
+      </li>
+    </>
+  ) : (
+    <>
+      <li className="nav-item">
+        <Link to="/login" className="nav-link">
+          Login
+        </Link>
+      </li>
+      <li className="nav-item">
+        <Link to="/signup" className="nav-link">
+          Signup
+        </Link>
+      </li>
     </>
   );
-};
 
-export default AppNavbar;
+  return (
+    <nav className="navbar navbar-expand-lg navbar-light bg-light">
+      <Link to="/" className="navbar-brand">
+        Book Search Engine
+      </Link>
+      <div className="collapse navbar-collapse" id="navbarNav">
+        <ul className="navbar-nav mr-auto">{!loading && authLink}</ul>
+      </div>
+    </nav>
+  );
+}
+
+export default Navbar;
